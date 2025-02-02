@@ -1,17 +1,19 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { HARDCODED_USER } from "../config/constants";
 import { tokenBlacklist } from "../utils/tokenBlacklist";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const login = (req: Request, res: Response) => {
   const { username, password } = req.body;
 
   if (
-    username === HARDCODED_USER.username &&
-    password === HARDCODED_USER.password
+    username === process.env.ADMIN_USERNAME &&
+    password === process.env.ADMIN_PASSWORD
   ) {
     const token = jwt.sign(
-      { _id: HARDCODED_USER._id },
+      { _id: process.env.ADMIN_ID },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "480m" }
     );

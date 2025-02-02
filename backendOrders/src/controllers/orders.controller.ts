@@ -114,11 +114,20 @@ export const postPrintNote = async (
   }
 };
 
-export const completeOrder = async (req: Request, res: Response) => {
+export const completeOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { orderId } = req.params;
+  const { newStatus } = req.body;
+
+  if (!newStatus) {
+    res.status(400).json({ message: "Status is required." });
+  }
+
   try {
     await wooCommerceApi.put(`/orders/${orderId}`, {
-      status: "completed",
+      status: newStatus,
     });
     res.json({ message: "Order completed" });
   } catch (error) {
