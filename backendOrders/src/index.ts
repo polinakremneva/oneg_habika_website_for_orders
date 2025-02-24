@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 async function main() {
   try {
     // Middleware to serve static files
-    app.use(express.static("public"));
+    app.use(express.static(path.join(__dirname, "public")));
 
     // Middleware to parse JSON
     app.use(express.json());
