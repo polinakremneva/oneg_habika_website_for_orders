@@ -4,10 +4,8 @@ import { Order } from "../types/order.types";
 class WooCommerceAPI {
   async getOrders(
     page: number = 1,
-    perPage: number = 20
+    perPage: number = 50
   ): Promise<{ orders: Order[]; totalOrders: number; totalPages: number }> {
-    console.log("Fetching orders with params:", { page, perPage });
-
     try {
       const response = await api.get("/orders", {
         params: {
@@ -30,7 +28,6 @@ class WooCommerceAPI {
       }
       const orders = await Promise.all(
         ordersData.map(async (order: any) => {
-          // Проверка meta_data
           const isPrintedMeta = order.meta_data?.some(
             (meta: any) =>
               meta.key === "_created_document" &&
@@ -156,8 +153,6 @@ class WooCommerceAPI {
 
   async markOrderAsPrinted(orderId: number) {
     try {
-      console.log(`PrintSync: Marking order ${orderId} as printed.`);
-
       const response = await api.post(`/orders/${orderId}/notes`, {
         note: "Order was printed by PrintSync. ההזמנה הודפסה על ידי מערכת PrintSync",
       });
@@ -169,6 +164,35 @@ class WooCommerceAPI {
         error
       );
       throw new Error("Failed to add print note in PrintSync.");
+    }
+  }
+
+  async completeOrder(orderId: number) {
+    try {
+      const response = await api.put(`/orders/${orderId}`, {
+        newStatus: "completed",
+      });
+      return response.data;
+    } catch (error) {
+      console.error(
+        `PrintSync Error: Failed to complete order ${orderId}`,
+        error
+      );
+      throw new Error("Failed to complete order in WooCommerce.");
+    }
+  }
+
+  async getProduct(productId: number, getOnlyDescription: boolean = false) {
+    try {
+      let url = `/products/${productId}`;
+      if (getOnlyDescription) {
+        url += '?fields=description'; // Добавляем параметр fields, если нужно только описание
+      }
+      const response = await api.get(url);
+      return response.data; // Возвращаем данные из ответа
+    } catch (error) {
+      console.error("Failed to fetch product:", error);
+      return null;
     }
   }
 }

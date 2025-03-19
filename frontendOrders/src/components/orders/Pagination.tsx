@@ -12,7 +12,7 @@ interface PaginationProps {
     op: "next" | "prev"
   ) => void;
   setSearchParams: SetURLSearchParams;
-  itemsPerPage?: number; // Added to help with calculations
+  itemsPerPage?: number;
 }
 
 export const Pagination = ({
@@ -21,21 +21,16 @@ export const Pagination = ({
   totalProcessingOrders,
   handlePagination,
   setSearchParams,
-  itemsPerPage = 20, // Default to 20 items per page
+  itemsPerPage = 50,
 }: PaginationProps) => {
-  // Don't render if no orders
   if (totalProcessingOrders === 0) return null;
 
-  // Calculate actual maxPages based on total orders
   const calculatedMaxPages = Math.ceil(totalProcessingOrders / itemsPerPage);
 
-  // Use calculated maxPages instead of passed maxPages if they differ
   const actualMaxPages = Math.max(calculatedMaxPages, maxPages);
 
-  // Ensure current page is within valid range
   const safePage = Math.min(Math.max(1, currentPage), actualMaxPages);
 
-  // Calculate pagination group
   const groupSize = 5;
   const currentGroup = Math.ceil(safePage / groupSize);
   const startPage = (currentGroup - 1) * groupSize + 1;
@@ -44,24 +39,7 @@ export const Pagination = ({
   const isPrevDisabled = safePage === 1;
   const isNextDisabled = safePage === actualMaxPages;
 
-  // Debug logging
-  console.log(
-    JSON.stringify(
-      {
-        totalProcessingOrders,
-        itemsPerPage,
-        calculatedMaxPages,
-        actualMaxPages,
-        currentPage,
-        safePage,
-      },
-      null,
-      2
-    )
-  );
-
   const handlePageClick = (page: number) => {
-    console.log("Changing to page:", page); // Debug log
     setSearchParams((prev) => {
       const newParams = new URLSearchParams(prev);
       newParams.set("page", `${page}`);

@@ -21,9 +21,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PrinterCheck } from "lucide-react";
+import { ordersService } from "@/services/order.service";
 
 interface PrintOrderProps {
   onOrdersPrinted?: (updatedOrders: Order[]) => void;
+  onTotalOrdersUpdate?: (printed: number, unprinted: number) => void;
 }
 
 const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
@@ -37,36 +39,6 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  const fetchAllOrders = async (): Promise<Order[]> => {
-    try {
-      const firstPageResponse = await wooCommerceAPI.getOrders(1);
-      let allOrders = [...firstPageResponse.orders];
-      const totalPages = firstPageResponse.totalPages;
-
-      if (totalPages > 1) {
-        const remainingPages = [];
-        for (let page = 2; page <= totalPages; page++) {
-          remainingPages.push(wooCommerceAPI.getOrders(page));
-        }
-
-        const responses = await Promise.all(remainingPages);
-        responses.forEach((response) => {
-          allOrders = [...allOrders, ...response.orders];
-        });
-      }
-
-      return allOrders;
-    } catch (error) {
-      console.error("Error fetching all orders:", error);
-      toast({
-        variant: "destructive",
-        title: "שגיאה בטעינת ההזמנות",
-        description: "אנא נסה שוב מאוחר יותר",
-      });
-      return [];
-    }
-  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -95,7 +67,6 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
           : order
       );
 
-      // Update local state immediately
       setOrders(updatedOrders);
 
       if (onOrdersPrinted) {
@@ -108,7 +79,6 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
         )
       );
 
-      // Refresh orders from server to ensure sync
       await fetchOrders();
 
       toast({
@@ -131,7 +101,8 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
       let ordersToProcess: Order[];
 
       if (filterType === "all") {
-        ordersToProcess = await fetchAllOrders();
+        const { orders: allOrders } = await ordersService.fetchAllOrders();
+        ordersToProcess = allOrders;
       } else {
         ordersToProcess = orders.filter((order) => !order.isPrinted);
       }
@@ -144,7 +115,6 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
         return;
       }
 
-      // Check for already printed orders
       const hasPrintedOrders = ordersToProcess.some((order) => order.isPrinted);
 
       if (hasPrintedOrders) {
@@ -210,11 +180,11 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
               חלק מההזמנות כבר הודפסו. האם אתה בטוח שברצונך להדפיס אותן שוב?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex justify-end gap-4 mt-4">
+          <DialogFooter className="flex justify-end gap-2 mt-4">
             <Button
               variant="outline"
               onClick={() => setDialogOpen(false)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-md"
+              className="px-4 py-2  text-gray-700 hover:bg-gray-100 rounded-xl"
             >
               ביטול
             </Button>
@@ -223,7 +193,7 @@ const PrintOrder = ({ onOrdersPrinted }: PrintOrderProps) => {
                 setDialogOpen(false);
                 updateOrdersAfterPrint(ordersToPrint);
               }}
-              className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-md transition duration-300 ease-in-out transform hover:scale-105"
+              className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-xl transition duration-300 ease-in-out transform hover:scale-105"
             >
               הדפס שוב
             </Button>

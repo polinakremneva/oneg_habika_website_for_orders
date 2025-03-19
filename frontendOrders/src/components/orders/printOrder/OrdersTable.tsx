@@ -1,7 +1,6 @@
 import type { Order } from "@/types/order.types";
 import { formatValue, formatPrice } from "./OrderUtils";
 
-// Function that returns HTML string instead of JSX
 export const renderProductsTable = (order: Order): string => {
   if (!order.line_items || order.line_items.length === 0) {
     return `<p class="no-products">לא נמצאו מוצרים בהזמנה זו</p>`;

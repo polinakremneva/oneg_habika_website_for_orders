@@ -8,6 +8,7 @@ import { Pagination } from "../components/orders/Pagination";
 import { OrdersHeader } from "../components/orders/OrdersHeader";
 import { LoadingSpinner } from "../components/orders/LoadingSpinner";
 import { Alert } from "@/components/ui/alert";
+import { ordersService } from "@/services/order.service";
 
 export const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -18,9 +19,16 @@ export const OrdersPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isPageValid, setIsPageValid] = useState(false);
+  const [totalPrinted, setTotalPrinted] = useState<number>(0);
+  const [totalUnprinted, setTotalUnprinted] = useState<number>(0);
+  const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
 
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
-  const perPage = parseInt(searchParams.get("per_page") || "20", 10);
+  const perPage = parseInt(searchParams.get("per_page") || "50", 10);
+
+  const handleOrderSelection = (selected: Order[]) => {
+    setSelectedOrders(selected);
+  };
 
   const handlePagination = (
     ev: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -46,9 +54,36 @@ export const OrdersPage = () => {
     navigate(`?page=${newPage}&per_page=${perPage}`, { replace: true });
   };
 
-  const handleOrdersUpdate = () => {
-    loadOrders();
-  };
+  const updateTotalCounts = useCallback(async () => {
+    try {
+      const { counts } = await ordersService.fetchAllOrders();
+      setTotalPrinted(counts.printed);
+      setTotalUnprinted(counts.unprinted);
+    } catch (error) {
+      console.error("Error updating total counts:", error);
+    }
+  }, []);
+
+  const handleOrderUpdate = useCallback(
+    async (orderId: number) => {
+      setOrders((prevOrders) =>
+        prevOrders.filter((order) => order.id !== orderId)
+      );
+
+      setTotalProcessingOrders((prev) => prev - 1);
+
+      if (orders.length <= 1 && currentPage > 1) {
+        setSearchParams((prev) => {
+          const newParams = new URLSearchParams(prev);
+          newParams.set("page", `${currentPage - 1}`);
+          return newParams;
+        });
+      }
+
+      await updateTotalCounts();
+    },
+    [currentPage, orders.length, setSearchParams, updateTotalCounts]
+  );
 
   const loadOrders = useCallback(async () => {
     try {
@@ -56,13 +91,6 @@ export const OrdersPage = () => {
       setError(null);
 
       const result = await wooCommerceAPI.getOrders(currentPage, perPage);
-
-      console.log("Loading orders:", {
-        currentPage,
-        totalOrders: result.totalOrders,
-        totalPages: result.totalPages,
-        receivedOrders: result.orders.length,
-      });
 
       if (currentPage > result.totalPages || currentPage < 1) {
         setSearchParams(
@@ -92,10 +120,12 @@ export const OrdersPage = () => {
       setTotalProcessingOrders(result.totalOrders);
       setMaxPages(result.totalPages);
       setIsPageValid(true);
+
+      await updateTotalCounts();
     } catch (err) {
       console.error("Error loading orders:", err);
       setError("Failed to load orders. Please try again.");
-      setIsPageValid(false); // Страница некорректна из-за ошибки
+      setIsPageValid(false);
     } finally {
       setLoading(false);
     }
@@ -122,6 +152,30 @@ export const OrdersPage = () => {
     loadOrders();
   }, [currentPage, perPage, navigate, loadOrders, setSearchParams]);
 
+  const handlePrintStatusUpdate = useCallback(
+    async (orderId: number) => {
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => {
+          if (order.id === orderId) {
+            if (order.isPrinted) return order;
+
+            return { ...order, isPrinted: true };
+          }
+          return order;
+        })
+      );
+
+      const order = orders.find((o) => o.id === orderId);
+      if (!order || order.isPrinted) return;
+
+      setTotalPrinted((prev) => prev + 1);
+      setTotalUnprinted((prev) => Math.max(prev - 1, 0));
+
+      await updateTotalCounts();
+    },
+    [orders, updateTotalCounts]
+  );
+
   if (!isPageValid || loading) {
     return <LoadingSpinner />;
   }
@@ -135,7 +189,13 @@ export const OrdersPage = () => {
           await authService.logout();
           navigate("/auth/login");
         }}
-        onOrdersUpdate={(updatedOrders) => setOrders(updatedOrders)} // Передаем обновление
+        onOrdersUpdate={(updatedOrders) => {
+          setOrders(updatedOrders);
+          updateTotalCounts();
+        }}
+        printedCount={totalPrinted}
+        unprintedCount={totalUnprinted}
+        selectedOrders={selectedOrders}
       />
 
       {error && (
@@ -144,7 +204,12 @@ export const OrdersPage = () => {
         </Alert>
       )}
 
-      <OrdersTable orders={orders} />
+      <OrdersTable
+        orders={orders}
+        onOrderUpdate={handleOrderUpdate}
+        onPrintStatusUpdate={handlePrintStatusUpdate}
+        onOrderSelection={handleOrderSelection}
+      />
 
       {maxPages > 1 && (
         <Pagination

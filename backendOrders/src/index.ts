@@ -4,6 +4,7 @@ import cors from "cors";
 import path from "path";
 import ordersRoutes from "./routes/orders.route"; // Import orders routes
 import authRoutes from "./routes/auth.route"; // Import auth routes
+import productsRoutes from "./routes/products.route";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ async function main() {
     // API routes
     app.use("/api/orders", ordersRoutes); // Attach orders routes
     app.use("/api/auth", authRoutes); // Attach auth routes
+    app.use("/api/products", productsRoutes);
 
     // Catch-all route for serving frontend
     app.get("*", (req: Request, res: Response) => {
